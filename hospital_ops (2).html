@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CityGen — Hospital Operations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{--bg:#0b0f14;--bg2:#131920;--bg3:#1c2533;--border:#26334a;--border2:#344460;--text:#e2e8f4;--text2:#8899b4;--text3:#506080;--accent:#3b82f6;--accent2:#60a5fa;--danger:#ef4444;--danger2:#fca5a5;--warn:#f59e0b;--warn2:#fcd34d;--ok:#22c55e;--ok2:#86efac;--info:#38bdf8;--mono:'Space Mono',monospace;--sans:'Outfit',sans-serif;--sidebar:230px;--rad:8px;--rad2:12px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;overflow:hidden}
+.shell{display:flex;height:100vh}
+.sidebar{width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:54px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0}
+.content{flex:1;overflow-y:auto;padding:24px}
+.logo{padding:20px 20px 16px;border-bottom:1px solid var(--border)}
+.logo-mark{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent2);letter-spacing:.1em}
+.logo-sub{font-size:10px;color:var(--text3);margin-top:2px;letter-spacing:.08em;text-transform:uppercase}
+.nav{padding:12px 10px;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--rad);cursor:pointer;color:var(--text2);font-size:13px;font-weight:500;margin-bottom:2px;transition:background .15s,color .15s;user-select:none}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:rgba(59,130,246,.15);color:var(--accent2)}
+.nav-item svg{width:16px;height:16px;flex-shrink:0}
+.nav-section{font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;padding:14px 10px 6px}
+.sidebar-footer{padding:14px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+.live-dot{display:inline-block;width:6px;height:6px;background:var(--ok);border-radius:50%;margin-right:6px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.page-title{font-size:15px;font-weight:600;color:var(--text)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.clock{font-family:var(--mono);font-size:13px;color:var(--text2)}
+.badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500}
+.badge-danger{background:rgba(239,68,68,.15);color:var(--danger2);border:1px solid rgba(239,68,68,.3)}
+.badge-warn{background:rgba(245,158,11,.15);color:var(--warn2);border:1px solid rgba(245,158,11,.3)}
+.badge-ok{background:rgba(34,197,94,.15);color:var(--ok2);border:1px solid rgba(34,197,94,.3)}
+.badge-info{background:rgba(56,189,248,.15);color:#7dd3fc;border:1px solid rgba(56,189,248,.3)}
+.badge-purple{background:rgba(167,139,250,.15);color:#c4b5fd;border:1px solid rgba(167,139,250,.3)}
+.page{display:none}
+.page.active{display:block;animation:fadein .2s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:24px}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rad2);padding:16px 18px}
+.kpi-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.kpi-val{font-family:var(--mono);font-size:28px;font-weight:700;line-height:1}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:6px}
+.kpi-danger .kpi-val{color:var(--danger)}.kpi-warn .kpi-val{color:var(--warn)}.kpi-ok .kpi-val{color:var(--ok)}.kpi-accent .kpi-val{color:var(--accent2)}
+.ward-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:24px}
+.ward-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rad2);padding:18px}
+.ward-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.ward-name{font-size:15px;font-weight:600}
+.cap-bar{height:5px;background:var(--bg3);border-radius:3px;margin-bottom:10px;overflow:hidden}
+.cap-fill{height:100%;border-radius:3px;transition:width .4s}
+.fill-r{background:var(--danger)}.fill-a{background:var(--warn)}.fill-g{background:var(--ok)}
+.ward-meta{display:flex;gap:20px;font-size:12px;color:var(--text2);margin-bottom:12px;flex-wrap:wrap}
+.ward-meta span{font-family:var(--mono);color:var(--text)}
+.bed-grid{display:grid;gap:3px}
+.bed-cell{aspect-ratio:1;border-radius:2px;transition:transform .1s}
+.bed-cell.clickable{cursor:pointer}
+.bed-cell.clickable:hover{transform:scale(1.35);z-index:2}
+.b-occ{background:var(--danger);opacity:.85}.b-cln{background:var(--warn);opacity:.9}.b-free{background:var(--ok);opacity:.8}
+.legend{display:flex;gap:18px;font-size:12px;color:var(--text2);align-items:center}
+.leg-dot{width:10px;height:10px;border-radius:2px}
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rad2);padding:20px;margin-bottom:24px}
+.chart-title{font-size:11px;font-weight:600;color:var(--text3);margin-bottom:16px;text-transform:uppercase;letter-spacing:.08em}
+.table-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rad2);overflow:hidden;margin-bottom:24px}
+.table-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.table-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.08em;padding:10px 18px;text-align:left;border-bottom:1px solid var(--border)}
+td{padding:10px 18px;border-bottom:1px solid rgba(38,51,74,.5);font-size:13px;color:var(--text);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.mono{font-family:var(--mono);font-size:12px}
+.triage{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:3px;letter-spacing:.05em}
+.t-red{background:rgba(239,68,68,.2);color:var(--danger2)}.t-orange{background:rgba(251,146,60,.2);color:#fdba74}.t-yellow{background:rgba(245,158,11,.2);color:var(--warn2)}.t-green{background:rgba(34,197,94,.2);color:var(--ok2)}
+.alert-row{display:flex;align-items:flex-start;gap:14px;padding:12px 18px;border-bottom:1px solid rgba(38,51,74,.5)}
+.alert-row:last-child{border-bottom:none}
+.al-icon{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.al-r{background:var(--danger);box-shadow:0 0 6px rgba(239,68,68,.5)}.al-a{background:var(--warn)}.al-b{background:var(--info)}
+.alert-msg{font-size:13px;color:var(--text);line-height:1.5}
+.alert-time{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px}
+.staff-bar-track{width:90px;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.staff-bar-fill{height:100%;border-radius:3px}
+.filters{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
+.filt-btn{font-size:12px;padding:5px 13px;border-radius:var(--rad);border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:var(--sans);transition:all .15s}
+.filt-btn:hover{border-color:var(--border2);color:var(--text)}
+.filt-btn.on{background:rgba(59,130,246,.15);color:var(--accent2);border-color:rgba(59,130,246,.4)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px}
+.alert-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rad2);overflow:hidden}
+.panel-hd{padding:13px 18px;border-bottom:1px solid var(--border);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);display:flex;align-items:center;justify-content:space-between}
+.sec-head{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:14px}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--rad);border:1px solid var(--border2);background:transparent;color:var(--text2);font-family:var(--sans);font-size:12px;cursor:pointer;transition:all .15s;font-weight:500}
+.btn:hover{background:var(--bg3);color:var(--text);border-color:var(--accent)}
+.btn-primary{background:rgba(59,130,246,.2);color:var(--accent2);border-color:rgba(59,130,246,.5)}
+.btn-primary:hover{background:rgba(59,130,246,.3)}
+.btn-danger{background:rgba(239,68,68,.12);color:var(--danger2);border-color:rgba(239,68,68,.35)}
+.btn-danger:hover{background:rgba(239,68,68,.22)}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-ok{background:rgba(34,197,94,.12);color:var(--ok2);border-color:rgba(34,197,94,.35)}
+.icon-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .15s;font-family:var(--sans)}
+.icon-btn:hover{background:var(--bg3);color:var(--text);border-color:var(--border2)}
+.icon-btn svg{width:13px;height:13px;pointer-events:none}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rad2);width:500px;max-height:85vh;overflow-y:auto;animation:fadein .15s ease}
+.modal-head{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg2);z-index:1}
+.modal-title{font-size:15px;font-weight:600}
+.modal-body{padding:20px 24px}
+.modal-foot{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:var(--bg2)}
+.close-btn{width:28px;height:28px;border-radius:6px;border:none;background:transparent;color:var(--text3);cursor:pointer;font-size:18px;line-height:1;transition:all .15s;font-family:var(--sans)}
+.close-btn:hover{background:var(--bg3);color:var(--text)}
+.form-row{margin-bottom:16px}
+.form-label{display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:500}
+.form-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rad);padding:9px 12px;color:var(--text);font-family:var(--sans);font-size:13px;outline:none;transition:border .15s}
+.form-input:focus{border-color:var(--accent)}
+.form-select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rad);padding:9px 12px;color:var(--text);font-family:var(--sans);font-size:13px;outline:none;cursor:pointer}
+.form-select:focus{border-color:var(--accent)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.spinner-row{display:flex;align-items:center;gap:12px}
+.spinner-btn{width:32px;height:32px;border-radius:var(--rad);border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;font-family:var(--sans);line-height:1}
+.spinner-btn:hover{background:var(--bg);color:var(--text)}
+.spinner-val{font-family:var(--mono);font-size:20px;font-weight:700;min-width:44px;text-align:center;color:var(--text)}
+.admin-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rad2);margin-bottom:18px;overflow:hidden}
+.admin-sec-head{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.admin-sec-title{font-size:13px;font-weight:600;color:var(--text)}
+.admin-sec-body{padding:18px 20px}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(38,51,74,.5)}
+.settings-row:last-child{border-bottom:none}
+.settings-label{font-size:13px;color:var(--text)}
+.settings-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.toggle{width:38px;height:20px;border-radius:10px;border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--accent)}.toggle.off{background:var(--bg3)}
+.toggle::after{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:3px;transition:left .2s}
+.toggle.on::after{left:21px}.toggle.off::after{left:3px}
+.threshold-row{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.threshold-label{font-size:13px;color:var(--text2);width:150px;flex-shrink:0}
+.threshold-input{width:64px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rad);padding:6px 10px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;text-align:center}
+.threshold-input:focus{border-color:var(--accent)}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rad2);padding:12px 18px;font-size:13px;color:var(--text);z-index:2000;display:flex;align-items:center;gap:10px;animation:slidein .2s ease;box-shadow:0 4px 24px rgba(0,0,0,.5)}
+@keyframes slidein{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+.inline-num{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:3px 8px;color:var(--text);font-family:var(--mono);font-size:12px;width:58px;text-align:center;outline:none}
+.inline-num:focus{border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">CITYGEN+</div>
+    <div class="logo-sub">Operations Centre</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Monitor</div>
+    <div class="nav-item active" onclick="nav('dashboard',this)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+      Overview
+    </div>
+    <div class="nav-item" onclick="nav('beds',this)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="7" width="14" height="7" rx="1"/><path d="M1 10h14M4 7V5a2 2 0 014 0v2M8 7V5a2 2 0 014 0v2"/></svg>
+      Bed Management
+    </div>
+    <div class="nav-item" onclick="nav('queue',this)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5"/></svg>
+      Patient Queue
+    </div>
+    <div class="nav-section">Staff</div>
+    <div class="nav-item" onclick="nav('staff',this)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1 14c0-2.761 2.239-4.5 5-4.5s5 1.739 5 4.5"/><circle cx="12" cy="5" r="2"/><path d="M12 10.5c1.657 0 3 1.119 3 3.5"/></svg>
+      Staff Roster
+    </div>
+    <div class="nav-section">System</div>
+    <div class="nav-item" onclick="nav('alerts',this)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1a5 5 0 015 5v3l1.5 2H1.5L3 9V6a5 5 0 015-5z"/><path d="M6 13a2 2 0 004 0"/></svg>
+      Alerts
+      <span id="alert-badge" class="badge badge-danger" style="margin-left:auto;font-size:10px;padding:1px 7px;">5</span>
+    </div>
+    <div class="nav-item" onclick="nav('admin',this)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/></svg>
+      Admin Controls
+      <span class="badge badge-purple" style="margin-left:auto;font-size:10px;padding:1px 7px;">CTRL</span>
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div><span class="live-dot"></span>Live · <span id="update-time">just now</span></div>
+    <div style="margin-top:4px;">Shift: <span id="shift-label">08:00 – 20:00</span></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="page-title" id="page-title">Overview</div>
+    <div class="topbar-right">
+      <div class="clock" id="clock">--:--:--</div>
+      <span id="top-crit" class="badge badge-danger">2 critical</span>
+      <span id="top-warn" class="badge badge-warn">3 warnings</span>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="kpi-grid">
+        <div class="kpi kpi-danger"><div class="kpi-label">Total occupancy</div><div class="kpi-val" id="kpi-occ">--</div><div class="kpi-sub" id="kpi-occ-sub">loading...</div></div>
+        <div class="kpi kpi-warn"><div class="kpi-label">Avg ER wait</div><div class="kpi-val" id="kpi-wait">42 min</div><div class="kpi-sub">▲ 8 min vs yesterday</div></div>
+        <div class="kpi kpi-ok"><div class="kpi-label">Staff on duty</div><div class="kpi-val" id="kpi-staff">--</div><div class="kpi-sub" id="kpi-staff-sub">loading...</div></div>
+        <div class="kpi kpi-accent"><div class="kpi-label">Pending admits</div><div class="kpi-val" id="kpi-pending">--</div><div class="kpi-sub">in queue</div></div>
+      </div>
+      <div class="sec-head">Ward capacity</div>
+      <div class="ward-grid" id="dash-wards"></div>
+      <div class="legend" style="margin-bottom:24px;">
+        <div style="display:flex;align-items:center;gap:6px;"><div class="leg-dot" style="background:var(--danger)"></div>Occupied</div>
+        <div style="display:flex;align-items:center;gap:6px;"><div class="leg-dot" style="background:var(--warn)"></div>Cleaning</div>
+        <div style="display:flex;align-items:center;gap:6px;"><div class="leg-dot" style="background:var(--ok)"></div>Available</div>
+      </div>
+      <div class="two-col">
+        <div><div class="chart-card"><div class="chart-title">24-hour occupancy trend</div><div style="position:relative;height:180px;"><canvas id="trend-chart" role="img" aria-label="Occupancy trend by ward"></canvas></div></div></div>
+        <div class="alert-panel"><div class="panel-hd">Active alerts</div><div id="alert-strip"></div></div>
+      </div>
+    </div>
+
+    <!-- BEDS -->
+    <div id="page-beds" class="page">
+      <div class="filters" id="bed-filters">
+        <button class="filt-btn on" onclick="bedFilter('all',this)">All wards</button>
+        <button class="filt-btn" onclick="bedFilter('ICU',this)">ICU</button>
+        <button class="filt-btn" onclick="bedFilter('General',this)">General</button>
+        <button class="filt-btn" onclick="bedFilter('Pediatrics',this)">Pediatrics</button>
+        <button class="filt-btn" onclick="bedFilter('Emergency',this)">Emergency</button>
+        <span style="margin-left:auto;font-size:12px;color:var(--text3);">Click any bed to cycle its status</span>
+      </div>
+      <div id="bed-wards" style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px;"></div>
+      <div class="legend">
+        <div style="display:flex;align-items:center;gap:6px;"><div class="leg-dot" style="background:var(--danger)"></div>Occupied</div>
+        <div style="display:flex;align-items:center;gap:6px;"><div class="leg-dot" style="background:var(--warn)"></div>Needs cleaning</div>
+        <div style="display:flex;align-items:center;gap:6px;"><div class="leg-dot" style="background:var(--ok)"></div>Available</div>
+      </div>
+    </div>
+
+    <!-- QUEUE -->
+    <div id="page-queue" class="page">
+      <div class="kpi-grid" style="margin-bottom:20px;">
+        <div class="kpi kpi-danger"><div class="kpi-label">Critical (T1)</div><div class="kpi-val" id="q-t1">--</div><div class="kpi-sub">Immediate</div></div>
+        <div class="kpi kpi-warn"><div class="kpi-label">Urgent (T2)</div><div class="kpi-val" id="q-t2">--</div><div class="kpi-sub">Within 30 min</div></div>
+        <div class="kpi"><div class="kpi-label">Semi-urgent (T3)</div><div class="kpi-val" id="q-t3" style="color:var(--warn2)">--</div><div class="kpi-sub">Within 60 min</div></div>
+        <div class="kpi kpi-ok"><div class="kpi-label">Non-urgent (T4)</div><div class="kpi-val" id="q-t4">--</div><div class="kpi-sub">Routine</div></div>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">Patient admit queue</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span class="badge badge-warn" id="queue-count-badge">--</span>
+            <button class="btn btn-primary btn-sm" onclick="openAddPatient()">+ Add patient</button>
+          </div>
+        </div>
+        <table><thead><tr><th>#</th><th>Patient ID</th><th>Age</th><th>Triage</th><th>Condition</th><th>Waiting</th><th>Ward</th><th>Status</th><th></th></tr></thead>
+        <tbody id="queue-tbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- STAFF -->
+    <div id="page-staff" class="page">
+      <div class="kpi-grid" style="margin-bottom:20px;">
+        <div class="kpi kpi-ok"><div class="kpi-label">Total on shift</div><div class="kpi-val" id="s-total">--</div><div class="kpi-sub" id="s-req-sub">of required</div></div>
+        <div class="kpi kpi-warn"><div class="kpi-label">Understaffed</div><div class="kpi-val" id="s-under">--</div><div class="kpi-sub">departments</div></div>
+        <div class="kpi"><div class="kpi-label">On break</div><div class="kpi-val" style="color:var(--accent2)">11</div><div class="kpi-sub">Back within 20 min</div></div>
+        <div class="kpi"><div class="kpi-label">On call</div><div class="kpi-val" style="color:var(--text2)">8</div><div class="kpi-sub">Available if paged</div></div>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">Department staffing</div>
+          <button class="btn btn-primary btn-sm" onclick="openAddStaff()">+ Add row</button>
+        </div>
+        <table><thead><tr><th>Department</th><th>Role</th><th>On duty</th><th>Required</th><th>Coverage</th><th>Shift ends</th><th></th></tr></thead>
+        <tbody id="staff-tbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ALERTS -->
+    <div id="page-alerts" class="page">
+      <div class="filters" id="alert-filters">
+        <button class="filt-btn on" onclick="alertFilter('all',this)">All</button>
+        <button class="filt-btn" onclick="alertFilter('critical',this)">Critical</button>
+        <button class="filt-btn" onclick="alertFilter('warning',this)">Warning</button>
+        <button class="filt-btn" onclick="alertFilter('info',this)">Info</button>
+        <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openAddAlert()">+ New alert</button>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">Alert log</div>
+          <span class="badge badge-danger" id="alert-unresolved-badge">-- unresolved</span>
+        </div>
+        <div id="alert-log"></div>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="page-admin" class="page">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
+        <div class="admin-section">
+          <div class="admin-sec-head">
+            <div class="admin-sec-title">Hospital settings</div>
+            <button class="btn btn-sm" onclick="saveSettings()">Save</button>
+          </div>
+          <div class="admin-sec-body">
+            <div class="settings-row">
+              <div><div class="settings-label">Hospital name</div><div class="settings-sub">Shown in header</div></div>
+              <input class="form-input" id="set-name" value="City General Hospital" style="width:175px;padding:6px 10px;font-size:12px">
+            </div>
+            <div class="settings-row">
+              <div><div class="settings-label">Shift start</div></div>
+              <input class="form-input" id="set-shift-start" type="time" value="08:00" style="width:100px;padding:6px 10px;font-size:12px">
+            </div>
+            <div class="settings-row">
+              <div><div class="settings-label">Shift end</div></div>
+              <input class="form-input" id="set-shift-end" type="time" value="20:00" style="width:100px;padding:6px 10px;font-size:12px">
+            </div>
+            <div class="settings-row">
+              <div><div class="settings-label">Live simulation</div><div class="settings-sub">Auto-update beds every 5s</div></div>
+              <button class="toggle on" id="sim-toggle" onclick="toggleSim(this)"></button>
+            </div>
+            <div class="settings-row">
+              <div><div class="settings-label">Alert notifications</div><div class="settings-sub">Show badge on alerts tab</div></div>
+              <button class="toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></button>
+            </div>
+          </div>
+        </div>
+        <div class="admin-section">
+          <div class="admin-sec-head">
+            <div class="admin-sec-title">Capacity thresholds</div>
+            <button class="btn btn-sm" onclick="toast('Thresholds saved')">Save</button>
+          </div>
+          <div class="admin-sec-body">
+            <div style="font-size:12px;color:var(--text3);margin-bottom:16px;">Set % at which wards trigger status badges</div>
+            <div class="threshold-row">
+              <div class="threshold-label">Critical threshold</div>
+              <input class="threshold-input" value="90"><span style="font-size:12px;color:var(--text3)">%</span>
+              <span class="badge badge-danger" style="font-size:10px">Critical</span>
+            </div>
+            <div class="threshold-row">
+              <div class="threshold-label">High threshold</div>
+              <input class="threshold-input" value="75"><span style="font-size:12px;color:var(--text3)">%</span>
+              <span class="badge badge-warn" style="font-size:10px">High</span>
+            </div>
+            <div class="threshold-row">
+              <div class="threshold-label">Normal below</div>
+              <input class="threshold-input" value="75" disabled style="opacity:.4"><span style="font-size:12px;color:var(--text3)">%</span>
+              <span class="badge badge-ok" style="font-size:10px">Normal</span>
+            </div>
+            <div class="threshold-row">
+              <div class="threshold-label">ER wait warning</div>
+              <input class="threshold-input" value="30"><span style="font-size:12px;color:var(--text3)">min</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="admin-section">
+        <div class="admin-sec-head">
+          <div class="admin-sec-title">Ward management</div>
+          <button class="btn btn-primary btn-sm" onclick="openAddWard()">+ Add ward</button>
+        </div>
+        <div class="admin-sec-body" style="padding:0">
+          <table><thead><tr><th>Ward</th><th>Total beds</th><th>Occupied</th><th>Cleaning</th><th>Staff</th><th>Req.</th><th>Actions</th></tr></thead>
+          <tbody id="admin-ward-tbody"></tbody></table>
+        </div>
+      </div>
+      <div class="admin-section">
+        <div class="admin-sec-head"><div class="admin-sec-title">Bulk actions</div></div>
+        <div class="admin-sec-body">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;">
+            <button class="btn" onclick="bulkAction('clear-cleaning')">Clear all cleaning beds</button>
+            <button class="btn" onclick="bulkAction('discharge-t4')">Discharge all T4 patients</button>
+            <button class="btn" onclick="bulkAction('resolve-alerts')">Resolve all alerts</button>
+            <button class="btn btn-ok" onclick="exportData()">Export JSON</button>
+            <button class="btn btn-danger" onclick="if(confirm('Reset everything?'))location.reload()">Reset to defaults</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="modal-title">Edit</div>
+      <button class="close-btn" onclick="closeModal()">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot" id="modal-foot"></div>
+  </div>
+</div>
+
+<div id="toast-el" class="toast" style="display:none"></div>
+
+<script>
+/* STATE */
+let WARDS=[
+  {name:'ICU',total:20,occupied:19,cleaning:1,staff:28,staffReq:30},
+  {name:'General',total:80,occupied:66,cleaning:6,staff:54,staffReq:62},
+  {name:'Pediatrics',total:40,occupied:27,cleaning:3,staff:22,staffReq:22},
+  {name:'Emergency',total:24,occupied:22,cleaning:2,staff:34,staffReq:35},
+];
+let BEDS={};
+WARDS.forEach(w=>{BEDS[w.name]=[];for(let i=0;i<w.total;i++)BEDS[w.name].push(i<w.occupied?'occ':i<w.occupied+w.cleaning?'cln':'free');});
+
+let ALERTS=[
+  {id:1,sev:'critical',msg:'ICU at 95% capacity — escalation protocol triggered',time:'2 min ago',dept:'ICU',resolved:false},
+  {id:2,sev:'critical',msg:'ER surge: 4 critical patients queued, no available beds',time:'7 min ago',dept:'Emergency',resolved:false},
+  {id:3,sev:'warning',msg:'General ward nurse-to-patient ratio below 1:6 threshold',time:'14 min ago',dept:'General',resolved:false},
+  {id:4,sev:'warning',msg:'3 beds in General pending housekeeping over 45 min',time:'22 min ago',dept:'General',resolved:false},
+  {id:5,sev:'warning',msg:'Housekeeping staffed at 75% — response times elevated',time:'31 min ago',dept:'Housekeeping',resolved:false},
+  {id:6,sev:'info',msg:'Pediatrics: 2 planned discharges expected by 14:00',time:'35 min ago',dept:'Pediatrics',resolved:true},
+  {id:7,sev:'info',msg:'Night shift briefing at 19:45 — Room B3',time:'1 hr ago',dept:'All',resolved:true},
+];
+let nextAid=8;
+
+let PATIENTS=[
+  {id:'PT-0041',age:67,triage:'T1',condition:'Chest pain / STEMI suspect',waiting:'4 min',ward:'ICU',status:'Awaiting bed'},
+  {id:'PT-0112',age:34,triage:'T1',condition:'Polytrauma — RTA',waiting:'9 min',ward:'Emergency',status:'Imaging'},
+  {id:'PT-0087',age:78,triage:'T1',condition:'Stroke — facial droop',waiting:'11 min',ward:'ICU',status:'Neuro consult'},
+  {id:'PT-0203',age:55,triage:'T1',condition:'Septic shock — BP 80/40',waiting:'13 min',ward:'ICU',status:'Labs pending'},
+  {id:'PT-0319',age:29,triage:'T2',condition:'Appendicitis — acute',waiting:'18 min',ward:'General',status:'Pre-op'},
+  {id:'PT-0445',age:44,triage:'T2',condition:'DVT — left leg',waiting:'24 min',ward:'General',status:'Doppler ordered'},
+  {id:'PT-0561',age:8,triage:'T2',condition:'Febrile seizure',waiting:'27 min',ward:'Pediatrics',status:'Monitoring'},
+  {id:'PT-0831',age:23,triage:'T3',condition:'Suspected fracture — wrist',waiting:'41 min',ward:'General',status:'X-ray queue'},
+  {id:'PT-1002',age:70,triage:'T3',condition:'UTI — elderly',waiting:'54 min',ward:'General',status:'Awaiting bed'},
+  {id:'PT-1145',age:19,triage:'T4',condition:'Laceration — 4cm forearm',waiting:'1h 2m',ward:'General',status:'Minor injuries'},
+  {id:'PT-1256',age:45,triage:'T4',condition:'Back pain — chronic',waiting:'1h 18m',ward:'General',status:'Awaiting GP'},
+];
+let nextPid=1300;
+
+let STAFF=[
+  {dept:'Emergency',role:'Nurse',on:22,req:22,end:'20:00'},
+  {dept:'Emergency',role:'Doctor',on:8,req:9,end:'20:00'},
+  {dept:'ICU',role:'Nurse',on:18,req:20,end:'20:00'},
+  {dept:'ICU',role:'Doctor',on:7,req:8,end:'20:00'},
+  {dept:'General',role:'Nurse',on:38,req:46,end:'20:00'},
+  {dept:'General',role:'Doctor',on:12,req:12,end:'20:00'},
+  {dept:'Pediatrics',role:'Nurse',on:16,req:16,end:'20:00'},
+  {dept:'Housekeeping',role:'Operative',on:15,req:20,end:'20:00'},
+];
+
+let simOn=true, alertFiltState='all', ticker=0;
+const TC={'T1':'t-red','T2':'t-orange','T3':'t-yellow','T4':'t-green'};
+
+/* NAV */
+const TITLES={dashboard:'Overview',beds:'Bed Management',queue:'Patient Queue',staff:'Staff Roster',alerts:'Alerts',admin:'Admin Controls'};
+function nav(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('page-title').textContent=TITLES[id];
+  const fn={dashboard:renderDash,beds:renderBeds,queue:renderQueue,staff:renderStaff,alerts:()=>renderAlerts(alertFiltState),admin:renderAdmin};
+  if(fn[id])fn[id]();
+}
+
+/* CLOCK */
+setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-GB'),1000);
+document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-GB');
+
+/* HELPERS */
+function syncBeds(w){const b=BEDS[w.name];w.occupied=b.filter(x=>x==='occ').length;w.cleaning=b.filter(x=>x==='cln').length;}
+function pct(w){return Math.round(((w.occupied+w.cleaning)/w.total)*100);}
+function badge(p){return p>=90?['badge-danger','Critical']:p>=75?['badge-warn','High']:['badge-ok','Normal'];}
+function fill(p){return p>=90?'fill-r':p>=75?'fill-a':'fill-g';}
+function rebuildBeds(w){BEDS[w.name]=[];for(let i=0;i<w.total;i++)BEDS[w.name].push(i<w.occupied?'occ':i<w.occupied+w.cleaning?'cln':'free');}
+
+function wardHTML(w,cols,editable){
+  const p=pct(w),[bc,bl]=badge(p),cf=fill(p),free=w.total-w.occupied-w.cleaning;
+  const beds=(BEDS[w.name]||[]).map((s,i)=>{
+    const cl=s==='occ'?'b-occ':s==='cln'?'b-cln':'b-free';
+    const lbl=s==='occ'?'Occupied':s==='cln'?'Cleaning':'Available';
+    return editable
+      ?`<div class="bed-cell clickable ${cl}" title="Bed ${i+1} — ${lbl} (click to change)" onclick="cycleBed('${w.name}',${i})"></div>`
+      :`<div class="bed-cell ${cl}" title="Bed ${i+1} — ${lbl}" style="cursor:default"></div>`;
+  }).join('');
+  const editBtn=editable?`<button class="icon-btn" title="Edit ward" onclick="openEditWard('${w.name}')" style="margin-left:auto">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 2l3 3-8 8H3v-3L11 2z"/></svg></button>`:'';
+  return`<div class="ward-card" data-ward="${w.name}">
+    <div class="ward-head"><div class="ward-name">${w.name}</div><span class="badge ${bc}">${bl} — ${p}%</span>${editBtn}</div>
+    <div class="cap-bar"><div class="cap-fill ${cf}" style="width:${p}%"></div></div>
+    <div class="ward-meta"><div>Occupied <span>${w.occupied}</span></div><div>Cleaning <span>${w.cleaning}</span></div><div>Free <span>${free}</span></div><div>Staff <span>${w.staff}/${w.staffReq}</span></div></div>
+    <div class="bed-grid" style="grid-template-columns:repeat(${cols},1fr)">${beds}</div>
+  </div>`;
+}
+
+/* DASHBOARD */
+function renderDash(){
+  const tb=WARDS.reduce((s,w)=>s+w.total,0),to=WARDS.reduce((s,w)=>s+w.occupied+w.cleaning,0);
+  document.getElementById('kpi-occ').textContent=Math.round((to/tb)*100)+'%';
+  document.getElementById('kpi-occ-sub').textContent=to+' / '+tb+' beds';
+  const ts=STAFF.reduce((s,r)=>s+r.on,0),tr=STAFF.reduce((s,r)=>s+r.req,0);
+  document.getElementById('kpi-staff').textContent=ts;
+  document.getElementById('kpi-staff-sub').textContent=tr+' required';
+  document.getElementById('kpi-pending').textContent=PATIENTS.length;
+  document.getElementById('dash-wards').innerHTML=WARDS.map(w=>wardHTML(w,10,false)).join('');
+  const unres=ALERTS.filter(a=>!a.resolved);
+  document.getElementById('alert-strip').innerHTML=unres.slice(0,5).map(a=>`
+    <div class="alert-row">
+      <div class="al-icon ${a.sev==='critical'?'al-r':a.sev==='warning'?'al-a':'al-b'}"></div>
+      <div><div class="alert-msg">${a.msg}</div><div class="alert-time">${a.time} · ${a.dept}</div></div>
+    </div>`).join('');
+  document.getElementById('alert-badge').textContent=unres.length;
+  document.getElementById('alert-unresolved-badge').textContent=unres.length+' unresolved';
+  const c=unres.filter(a=>a.sev==='critical').length,wa=unres.filter(a=>a.sev==='warning').length;
+  document.getElementById('top-crit').textContent=c+' critical';
+  document.getElementById('top-warn').textContent=wa+' warning'+(wa!==1?'s':'');
+}
+
+/* BEDS */
+function renderBeds(){document.getElementById('bed-wards').innerHTML=WARDS.map(w=>wardHTML(w,20,true)).join('');}
+function bedFilter(ward,btn){
+  document.querySelectorAll('#bed-filters .filt-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+  document.querySelectorAll('#bed-wards .ward-card').forEach(c=>{c.style.display=(ward==='all'||c.dataset.ward===ward)?'':'none';});
+}
+function cycleBed(wn,idx){
+  const cyc={'occ':'cln','cln':'free','free':'occ'};
+  BEDS[wn][idx]=cyc[BEDS[wn][idx]];
+  const w=WARDS.find(x=>x.name===wn);syncBeds(w);
+  renderBeds();renderDash();
+  const s=BEDS[wn][idx];toast(`Bed ${idx+1} in ${wn}: ${s==='occ'?'Occupied':s==='cln'?'Cleaning':'Available'}`);
+}
+
+/* EDIT WARD */
+function openEditWard(name){
+  const w=WARDS.find(x=>x.name===name);
+  document.getElementById('modal-title').textContent='Edit ward: '+name;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="form-row"><div class="form-label">Total beds</div>
+      <div class="spinner-row"><button class="spinner-btn" onclick="spin('ew-tot',-1,1,300)">&#x2212;</button><div class="spinner-val" id="ew-tot">${w.total}</div><button class="spinner-btn" onclick="spin('ew-tot',1,1,300)">+</button></div></div>
+    <div class="form-row"><div class="form-label">Occupied beds</div>
+      <div class="spinner-row"><button class="spinner-btn" onclick="spin('ew-occ',-1,0,300)">&#x2212;</button><div class="spinner-val" id="ew-occ">${w.occupied}</div><button class="spinner-btn" onclick="spin('ew-occ',1,0,300)">+</button></div></div>
+    <div class="form-row"><div class="form-label">Cleaning beds</div>
+      <div class="spinner-row"><button class="spinner-btn" onclick="spin('ew-cln',-1,0,300)">&#x2212;</button><div class="spinner-val" id="ew-cln">${w.cleaning}</div><button class="spinner-btn" onclick="spin('ew-cln',1,0,300)">+</button></div></div>
+    <div class="form-row"><div class="form-label">Staff on duty</div>
+      <div class="spinner-row"><button class="spinner-btn" onclick="spin('ew-sta',-1,0,200)">&#x2212;</button><div class="spinner-val" id="ew-sta">${w.staff}</div><button class="spinner-btn" onclick="spin('ew-sta',1,0,200)">+</button></div></div>
+    <div class="form-row"><div class="form-label">Staff required</div>
+      <div class="spinner-row"><button class="spinner-btn" onclick="spin('ew-req',-1,0,200)">&#x2212;</button><div class="spinner-val" id="ew-req">${w.staffReq}</div><button class="spinner-btn" onclick="spin('ew-req',1,0,200)">+</button></div></div>`;
+  document.getElementById('modal-foot').innerHTML=`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveWard('${name}')">Save changes</button>`;
+  openModal();
+}
+function saveWard(name){
+  const w=WARDS.find(x=>x.name===name);
+  w.total=+g('ew-tot').textContent; w.occupied=Math.min(+g('ew-occ').textContent,w.total);
+  w.cleaning=Math.min(+g('ew-cln').textContent,w.total-w.occupied);
+  w.staff=+g('ew-sta').textContent; w.staffReq=+g('ew-req').textContent;
+  rebuildBeds(w); closeModal(); renderBeds(); renderDash(); renderAdmin(); toast('Ward '+name+' updated');
+}
+
+/* ADD WARD */
+function openAddWard(){
+  document.getElementById('modal-title').textContent='Add new ward';
+  document.getElementById('modal-body').innerHTML=`
+    <div class="form-row"><div class="form-label">Ward name</div><input class="form-input" id="nw-name" placeholder="e.g. Oncology"></div>
+    <div class="form-grid">
+      <div class="form-row"><div class="form-label">Total beds</div><input class="form-input" id="nw-tot" type="number" value="20" min="1"></div>
+      <div class="form-row"><div class="form-label">Occupied</div><input class="form-input" id="nw-occ" type="number" value="0" min="0"></div>
+      <div class="form-row"><div class="form-label">Cleaning</div><input class="form-input" id="nw-cln" type="number" value="0" min="0"></div>
+      <div class="form-row"><div class="form-label">Staff on duty</div><input class="form-input" id="nw-sta" type="number" value="10" min="0"></div>
+      <div class="form-row"><div class="form-label">Staff required</div><input class="form-input" id="nw-req" type="number" value="12" min="0"></div>
+    </div>`;
+  document.getElementById('modal-foot').innerHTML=`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="addWard()">Add ward</button>`;
+  openModal();
+}
+function addWard(){
+  const name=g('nw-name').value.trim();
+  if(!name){toast('Enter a ward name','w');return;}
+  if(WARDS.find(w=>w.name===name)){toast('Ward already exists','w');return;}
+  const tot=+g('nw-tot').value,occ=+g('nw-occ').value,cln=+g('nw-cln').value;
+  const w={name,total:tot,occupied:occ,cleaning:cln,staff:+g('nw-sta').value,staffReq:+g('nw-req').value};
+  WARDS.push(w); rebuildBeds(w); closeModal(); renderAdmin(); renderDash(); toast('Ward '+name+' added');
+}
+
+/* QUEUE */
+function renderQueue(){
+  ['T1','T2','T3','T4'].forEach(t=>document.getElementById('q-'+t.toLowerCase()).textContent=PATIENTS.filter(p=>p.triage===t).length);
+  document.getElementById('queue-count-badge').textContent=PATIENTS.length+' pending';
+  document.getElementById('queue-tbody').innerHTML=PATIENTS.map((p,i)=>`
+    <tr>
+      <td class="mono" style="color:var(--text3)">${String(i+1).padStart(2,'0')}</td>
+      <td class="mono">${p.id}</td><td>${p.age}</td>
+      <td><span class="triage ${TC[p.triage]}">${p.triage}</span></td>
+      <td>${p.condition}</td>
+      <td class="mono" style="color:${p.triage==='T1'?'var(--danger)':p.triage==='T2'?'var(--warn)':'var(--text2)'}">${p.waiting}</td>
+      <td>${p.ward}</td><td style="color:var(--text2);font-size:12px">${p.status}</td>
+      <td><div style="display:flex;gap:4px;">
+        <button class="icon-btn" onclick="openEditPt(${i})" title="Edit">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 2l3 3-8 8H3v-3L11 2z"/></svg></button>
+        <button class="icon-btn" onclick="dischargePt(${i})" title="Discharge" style="color:var(--danger2)">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8h10M9 4l4 4-4 4"/></svg></button>
+      </div></td>
+    </tr>`).join('');
+}
+function openAddPatient(){
+  document.getElementById('modal-title').textContent='Add patient to queue';
+  document.getElementById('modal-body').innerHTML=`
+    <div class="form-grid">
+      <div class="form-row"><div class="form-label">Patient ID</div><input class="form-input" id="np-id" placeholder="Auto-generated if blank"></div>
+      <div class="form-row"><div class="form-label">Age</div><input class="form-input" id="np-age" type="number" value="45"></div>
+    </div>
+    <div class="form-row"><div class="form-label">Triage level</div>
+      <select class="form-select" id="np-tri">
+        <option value="T1">T1 — Critical</option><option value="T2" selected>T2 — Urgent</option>
+        <option value="T3">T3 — Semi-urgent</option><option value="T4">T4 — Non-urgent</option>
+      </select></div>
+    <div class="form-row"><div class="form-label">Condition</div><input class="form-input" id="np-cond" placeholder="Brief clinical description"></div>
+    <div class="form-grid">
+      <div class="form-row"><div class="form-label">Target ward</div>
+        <select class="form-select" id="np-ward">${WARDS.map(w=>`<option>${w.name}</option>`).join('')}</select></div>
+      <div class="form-row"><div class="form-label">Status</div><input class="form-input" id="np-stat" value="Awaiting bed"></div>
+    </div>
+    <div class="form-row"><div class="form-label">Waiting time</div><input class="form-input" id="np-wait" value="1 min"></div>`;
+  document.getElementById('modal-foot').innerHTML=`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="addPt()">Add to queue</button>`;
+  openModal();
+}
+function addPt(){
+  const id=g('np-id').value.trim()||'PT-'+nextPid++;
+  PATIENTS.unshift({id,age:+g('np-age').value,triage:g('np-tri').value,condition:g('np-cond').value||'Unknown',waiting:g('np-wait').value,ward:g('np-ward').value,status:g('np-stat').value});
+  closeModal(); renderQueue(); renderDash(); toast('Patient '+id+' added');
+}
+function openEditPt(i){
+  const p=PATIENTS[i];
+  document.getElementById('modal-title').textContent='Edit patient: '+p.id;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="form-grid">
+      <div class="form-row"><div class="form-label">Patient ID</div><input class="form-input" id="ep-id" value="${p.id}"></div>
+      <div class="form-row"><div class="form-label">Age</div><input class="form-input" id="ep-age" type="number" value="${p.age}"></div>
+    </div>
+    <div class="form-row"><div class="form-label">Triage level</div>
+      <select class="form-select" id="ep-tri">
+        <option value="T1" ${p.triage==='T1'?'selected':''}>T1 — Critical</option>
+        <option value="T2" ${p.triage==='T2'?'selected':''}>T2 — Urgent</option>
+        <option value="T3" ${p.triage==='T3'?'selected':''}>T3 — Semi-urgent</option>
+        <option value="T4" ${p.triage==='T4'?'selected':''}>T4 — Non-urgent</option>
+      </select></div>
+    <div class="form-row"><div class="form-label">Condition</div><input class="form-input" id="ep-cond" value="${p.condition}"></div>
+    <div class="form-grid">
+      <div class="form-row"><div class="form-label">Target ward</div>
+        <select class="form-select" id="ep-ward">${WARDS.map(w=>`<option ${w.name===p.ward?'selected':''}>${w.name}</option>`).join('')}</select></div>
+      <div class="form-row"><div class="form-label">Status</div><input class="form-input" id="ep-stat" value="${p.status}"></div>
+    </div>
+    <div class="form-row"><div class="form-label">Waiting time</div><input class="form-input" id="ep-wait" value="${p.waiting}"></div>`;
+  document.getElementById('modal-foot').innerHTML=`
+    <button class="btn btn-danger" onclick="dischargePt(${i});closeModal()">Discharge</button>
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="savePt(${i})">Save</button>`;
+  openModal();
+}
+function savePt(i){
+  PATIENTS[i]={id:g('ep-id').value,age:+g('ep-age').value,triage:g('ep-tri').value,condition:g('ep-cond').value,ward:g('ep-ward').value,status:g('ep-stat').value,waiting:g('ep-wait').value};
+  closeModal(); renderQueue(); renderDash(); toast('Patient updated');
+}
+function dischargePt(i){const id=PATIENTS[i].id;PATIENTS.splice(i,1);renderQueue();renderDash();toast('Patient '+id+' discharged');}
+
+/* STAFF */
+function renderStaff(){
+  const ts=STAFF.reduce((s,r)=>s+r.on,0),tr=STAFF.reduce((s,r)=>s+r.req,0);
+  document.getElementById('s-total').textContent=ts;
+  document.getElementById('s-req-sub').textContent='of '+tr+' required';
+  document.getElementById('s-under').textContent=STAFF.filter(r=>r.on<r.req).length;
+  document.getElementById('staff-tbody').innerHTML=STAFF.map((s,i)=>{
+    const p=Math.min(Math.round((s.on/s.req)*100),100);
+    const c=p>=100?'var(--ok)':p>=85?'var(--warn)':'var(--danger)';
+    return`<tr>
+      <td><strong>${s.dept}</strong></td>
+      <td style="color:var(--text2)">${s.role}</td>
+      <td><input class="inline-num" value="${s.on}" onchange="STAFF[${i}].on=+this.value;renderStaff()"></td>
+      <td><input class="inline-num" value="${s.req}" onchange="STAFF[${i}].req=+this.value;renderStaff()"></td>
+      <td><div style="display:flex;align-items:center;gap:10px;">
+        <div class="staff-bar-track"><div class="staff-bar-fill" style="width:${p}%;background:${c}"></div></div>
+        <span class="mono" style="font-size:11px;color:${c}">${p}%</span>
+      </div></td>
+      <td><input class="form-input" value="${s.end}" style="width:75px;padding:4px 8px;font-size:12px" onchange="STAFF[${i}].end=this.value"></td>
+      <td><button class="icon-btn" onclick="STAFF.splice(${i},1);renderStaff();toast('Row removed')" title="Remove" style="color:var(--danger2)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M6 4V2h4v2M5 4v9h6V4"/></svg></button></td>
+    </tr>`;
+  }).join('');
+}
+function openAddStaff(){
+  document.getElementById('modal-title').textContent='Add department row';
+  document.getElementById('modal-body').innerHTML=`
+    <div class="form-row"><div class="form-label">Department</div><input class="form-input" id="ns-dept" placeholder="e.g. Radiology"></div>
+    <div class="form-row"><div class="form-label">Role</div><input class="form-input" id="ns-role" placeholder="e.g. Nurse"></div>
+    <div class="form-grid">
+      <div class="form-row"><div class="form-label">On duty</div><input class="form-input" id="ns-on" type="number" value="10"></div>
+      <div class="form-row"><div class="form-label">Required</div><input class="form-input" id="ns-req" type="number" value="12"></div>
+      <div class="form-row"><div class="form-label">Shift end</div><input class="form-input" id="ns-end" value="20:00"></div>
+    </div>`;
+  document.getElementById('modal-foot').innerHTML=`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="addStaff()">Add</button>`;
+  openModal();
+}
+function addStaff(){
+  STAFF.push({dept:g('ns-dept').value||'Dept',role:g('ns-role').value||'Staff',on:+g('ns-on').value,req:+g('ns-req').value,end:g('ns-end').value});
+  closeModal(); renderStaff(); toast('Row added');
+}
+
+/* ALERTS */
+function renderAlerts(f){
+  alertFiltState=f;
+  const items=f==='all'?ALERTS:ALERTS.filter(a=>a.sev===f);
+  const unres=ALERTS.filter(a=>!a.resolved).length;
+  document.getElementById('alert-unresolved-badge').textContent=unres+' unresolved';
+  document.getElementById('alert-badge').textContent=unres;
+  document.getElementById('alert-log').innerHTML=items.map(a=>`
+    <div class="alert-row" style="${a.resolved?'opacity:.45':''}">
+      <div class="al-icon ${a.sev==='critical'?'al-r':a.sev==='warning'?'al-a':'al-b'}" style="margin-top:5px"></div>
+      <div style="flex:1">
+        <div class="alert-msg" style="${a.resolved?'text-decoration:line-through':''}">${a.msg}</div>
+        <div class="alert-time">${a.time} · ${a.dept} · <span style="text-transform:capitalize;color:${a.sev==='critical'?'var(--danger2)':a.sev==='warning'?'var(--warn2)':'#7dd3fc'}">${a.sev}</span>${a.resolved?' · <span style="color:var(--ok2)">resolved</span>':''}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        ${!a.resolved?`<button class="btn btn-ok btn-sm" onclick="resolveAlert(${a.id})">Resolve</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="deleteAlert(${a.id})">Delete</button>
+      </div>
+    </div>`).join('')||`<div style="padding:20px 18px;color:var(--text3);font-size:13px">No alerts in this category.</div>`;
+}
+function alertFilter(f,btn){document.querySelectorAll('#alert-filters .filt-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderAlerts(f);}
+function resolveAlert(id){const a=ALERTS.find(x=>x.id===id);if(a)a.resolved=true;renderAlerts(alertFiltState);renderDash();toast('Alert resolved');}
+function deleteAlert(id){ALERTS.splice(ALERTS.findIndex(x=>x.id===id),1);renderAlerts(alertFiltState);renderDash();toast('Alert deleted');}
+function openAddAlert(){
+  document.getElementById('modal-title').textContent='Post new alert';
+  document.getElementById('modal-body').innerHTML=`
+    <div class="form-row"><div class="form-label">Severity</div>
+      <select class="form-select" id="na-sev"><option value="critical">Critical</option><option value="warning" selected>Warning</option><option value="info">Info</option></select></div>
+    <div class="form-row"><div class="form-label">Message</div><textarea class="form-input" id="na-msg" rows="3" style="resize:vertical" placeholder="Describe the alert..."></textarea></div>
+    <div class="form-row"><div class="form-label">Department</div><input class="form-input" id="na-dept" value="All"></div>`;
+  document.getElementById('modal-foot').innerHTML=`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="addAlert()">Post alert</button>`;
+  openModal();
+}
+function addAlert(){
+  const msg=g('na-msg').value.trim();
+  if(!msg){toast('Enter a message','w');return;}
+  ALERTS.unshift({id:nextAid++,sev:g('na-sev').value,msg,time:'just now',dept:g('na-dept').value,resolved:false});
+  closeModal(); renderAlerts(alertFiltState); renderDash(); toast('Alert posted');
+}
+
+/* ADMIN */
+function renderAdmin(){
+  document.getElementById('admin-ward-tbody').innerHTML=WARDS.map((w,i)=>{
+    const p=pct(w),[bc]=badge(p);
+    return`<tr>
+      <td><strong>${w.name}</strong> <span class="badge ${bc}" style="font-size:10px;margin-left:6px">${p}%</span></td>
+      <td><input class="inline-num" value="${w.total}" onchange="WARDS[${i}].total=+this.value;rebuildBeds(WARDS[${i}]);renderAdmin();renderDash()"></td>
+      <td><input class="inline-num" value="${w.occupied}" onchange="WARDS[${i}].occupied=Math.min(+this.value,WARDS[${i}].total);rebuildBeds(WARDS[${i}]);renderAdmin();renderDash()"></td>
+      <td><input class="inline-num" value="${w.cleaning}" onchange="WARDS[${i}].cleaning=Math.min(+this.value,WARDS[${i}].total-WARDS[${i}].occupied);rebuildBeds(WARDS[${i}]);renderAdmin();renderDash()"></td>
+      <td><input class="inline-num" value="${w.staff}" onchange="WARDS[${i}].staff=+this.value;renderAdmin()"></td>
+      <td><input class="inline-num" value="${w.staffReq}" onchange="WARDS[${i}].staffReq=+this.value;renderAdmin()"></td>
+      <td><div style="display:flex;gap:4px">
+        <button class="icon-btn" onclick="openEditWard('${w.name}')" title="Edit">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 2l3 3-8 8H3v-3L11 2z"/></svg></button>
+        <button class="icon-btn" onclick="delWard(${i})" title="Delete" style="color:var(--danger2)">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M6 4V2h4v2M5 4v9h6V4"/></svg></button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+function delWard(i){const n=WARDS[i].name;WARDS.splice(i,1);delete BEDS[n];renderAdmin();renderDash();toast('Ward '+n+' removed');}
+
+/* SETTINGS */
+function saveSettings(){
+  document.getElementById('shift-label').textContent=g('set-shift-start').value+' – '+g('set-shift-end').value;
+  toast('Settings saved');
+}
+function toggleSim(btn){simOn=!simOn;btn.classList.toggle('on');btn.classList.toggle('off');toast(simOn?'Simulation on':'Simulation paused');}
+
+/* BULK */
+function bulkAction(a){
+  if(a==='clear-cleaning'){WARDS.forEach(w=>{BEDS[w.name]=BEDS[w.name].map(b=>b==='cln'?'free':b);syncBeds(w);});renderDash();toast('All cleaning beds cleared');}
+  else if(a==='discharge-t4'){const b=PATIENTS.length;PATIENTS=PATIENTS.filter(p=>p.triage!=='T4');toast('Discharged '+(b-PATIENTS.length)+' T4 patients');renderQueue();renderDash();}
+  else if(a==='resolve-alerts'){ALERTS.forEach(a=>a.resolved=true);renderAlerts(alertFiltState);renderDash();toast('All alerts resolved');}
+}
+function exportData(){
+  const a=document.createElement('a');
+  a.href='data:application/json,'+encodeURIComponent(JSON.stringify({WARDS,PATIENTS,STAFF,ALERTS},null,2));
+  a.download='hospital_ops_export.json'; a.click(); toast('Data exported as JSON');
+}
+
+/* MODAL */
+function openModal(){document.getElementById('modal-overlay').classList.add('open');}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
+function spin(id,d,mn,mx){const e=g(id);e.textContent=Math.max(mn,Math.min(mx,+e.textContent+d));}
+function g(id){return document.getElementById(id);}
+
+/* TOAST */
+function toast(msg,type){
+  const e=g('toast-el');
+  e.innerHTML=`<span style="color:${type==='w'?'var(--warn2)':'var(--ok2)'}">${type==='w'?'&#9888;':'&#10003;'}</span> ${msg}`;
+  e.style.display='flex'; clearTimeout(e._t); e._t=setTimeout(()=>e.style.display='none',2600);
+}
+
+/* CHART */
+const hours=Array.from({length:24},(_,i)=>`${String(i).padStart(2,'0')}:00`);
+const rnd=(b,n)=>hours.map((_,i)=>Math.min(100,Math.max(20,Math.round(b+Math.sin(i/3)*n+(Math.random()-.5)*8))));
+new Chart(g('trend-chart'),{type:'line',data:{labels:hours,datasets:[
+  {label:'ICU',data:rnd(88,10),borderColor:'#ef4444',borderWidth:1.5,pointRadius:0,tension:.4,fill:false,borderDash:[4,3]},
+  {label:'General',data:rnd(78,15),borderColor:'#f59e0b',borderWidth:1.5,pointRadius:0,tension:.4,fill:false},
+  {label:'Pediatrics',data:rnd(60,18),borderColor:'#22c55e',borderWidth:1.5,pointRadius:0,tension:.4,fill:false},
+  {label:'Emergency',data:rnd(84,12),borderColor:'#38bdf8',borderWidth:1.5,pointRadius:0,tension:.4,fill:false,borderDash:[2,2]},
+]},options:{responsive:true,maintainAspectRatio:false,
+  plugins:{legend:{display:true,position:'top',align:'end',labels:{color:'#8899b4',boxWidth:12,boxHeight:2,padding:14,font:{size:11,family:"'Outfit',sans-serif"}}},
+    tooltip:{mode:'index',intersect:false,backgroundColor:'#1c2533',titleColor:'#e2e8f4',bodyColor:'#8899b4',borderColor:'#344460',borderWidth:1,
+      callbacks:{label:ctx=>` ${ctx.dataset.label}: ${Math.round(ctx.parsed.y)}%`}}},
+  scales:{
+    x:{ticks:{color:'#506080',font:{size:10},maxTicksLimit:8},grid:{color:'rgba(38,51,74,.5)'},border:{display:false}},
+    y:{ticks:{color:'#506080',font:{size:10},callback:v=>v+'%'},grid:{color:'rgba(38,51,74,.5)'},border:{display:false},min:20,max:100}
+  }
+}});
+
+/* LIVE SIM */
+setInterval(()=>{
+  ticker+=5;
+  g('update-time').textContent=ticker+'s ago';
+  if(!simOn)return;
+  const w=WARDS[Math.floor(Math.random()*WARDS.length)];
+  const beds=BEDS[w.name],idx=Math.floor(Math.random()*beds.length);
+  const cyc={'occ':'cln','cln':'free','free':'occ'};
+  beds[idx]=cyc[beds[idx]]; syncBeds(w); renderDash();
+},5000);
+
+/* INIT */
+renderDash();
+</script>
+</body>
+</html>
